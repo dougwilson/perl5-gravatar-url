@@ -1,5 +1,6 @@
 #!/usr/bin/perl -w
 
+use Config;
 use Test::More;
 
 BEGIN { use_ok 'Net::DNS';
@@ -222,19 +223,24 @@ BEGIN { use_ok 'Net::DNS';
         ],
     );
 
-    srand(42); # to make these tests predictable
+    SKIP: {
+        skip qq{Don't know seed for $Config{randfunc} on $^O},
+            scalar(@srv_tests) if $Config{randfunc} ne 'drand48';
 
-    for my $test (@srv_tests) {
-        my ($srv_strings, $pair) = @$test;
+        srand(42); # to make these tests predictable
 
-        my @srv_records = ();
-        for $str (@$srv_strings) {
-            my $record = Net::DNS::RR->new($str);
-            push @srv_records, $record;
+        for my $test (@srv_tests) {
+            my ($srv_strings, $pair) = @$test;
+
+            my @srv_records = ();
+            for $str (@$srv_strings) {
+                my $record = Net::DNS::RR->new($str);
+                push @srv_records, $record;
+            }
+
+            my @result = Libravatar::URL::srv_hostname(@srv_records);
+            is_deeply \@result, $pair;
         }
-
-        my @result = Libravatar::URL::srv_hostname(@srv_records);
-        is_deeply \@result, $pair;
     }
 
     $test_count = @email_domain_tests + @openid_domain_tests + @lowercase_openid + @url_tests + @sanitization_tests + @srv_tests + 2;
